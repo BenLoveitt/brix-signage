@@ -1,0 +1,24 @@
+{
+  "name": "brix-signage",
+  "description": "Manage Brix digital signage screens, playlists, schedules, media and emergency messages from Cursor through the hosted Brix MCP server, with the brix-signage skill.",
+  "version": "1.1.0",
+  "author": { "name": "Brix Signage", "email": "hello@brixsignage.com" },
+  "homepage": "https://brixsignage.com/developers/mcp/",
+  "repository": "https://github.com/BenLoveitt/brix-signage",
+  "license": "MIT",
+  "keywords": ["digital-signage", "signage", "screens", "mcp", "brix"],
+  "logo": "assets/logo.svg",
+  "skills": "skills/",
+  "mcpServers": "mcp.json",
+  "variables": {
+    "type": "object",
+    "properties": {
+      "BRIX_API_KEY": {
+        "type": "string",
+        "title": "Brix API key",
+        "description": "Create one in the Brix console: Settings > AI, API & MCP > API keys. A view-only key is a safe first try."
+      }
+    },
+    "required": ["BRIX_API_KEY"]
+  }
+}
