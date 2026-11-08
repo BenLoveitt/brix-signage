@@ -1,0 +1,2054 @@
+{
+  "identifier": "brixsignage-brix",
+  "name": "Brix Digital Signage",
+  "version": "1.1.0",
+  "description": "Hosted MCP server for Brix digital signage: check screen health and why a screen is blank, put playlists and announcements on screens, take over screens for emergencies, upload media, build playlists and schedules, and pull uptime and proof-of-play reports. Sign in with OAuth or use an API key.",
+  "author": "Brix Signage",
+  "authorUrl": "https://brixsignage.com",
+  "homepage": "https://brixsignage.com/developers/mcp/",
+  "cloudEndpoint": "https://api.brixsignage.com/v1/mcp",
+  "icon": "https://brixsignage.com/assets/favicon.svg",
+  "category": "productivity",
+  "tags": [
+    "digital-signage",
+    "screens",
+    "displays",
+    "content-management",
+    "proof-of-play",
+    "remote"
+  ],
+  "tools": [
+    {
+      "name": "list_items",
+      "description": "List items of one kind with their ids, so other tools can act on them.\n\nWhen to use:\n- A request names a screen, file, playlist or location and you need its id.\n- Seeing what runs now (casts, emergencies), what is wrong now (alerts), approval requests, deleted items (recycle_bin), or who is in the workspace and what they may do (people, roles).\n\nWhen NOT to use:\n- Reading one item's contents: use get_items.\n- History over time: use get_fleet_report.\n\nWhat to know:\n- Rows are short (id, name, nodeId, counts), never configs or members; only locations this connection can see. people rows add each person's role at each location (never sign-in details); roles rows add their permissions.\n- A kind this connection cannot read is an error, not an empty list. people and roles are read-only here (invite with create_items); changing a person's access, roles, API keys and billing stays with a signed-in person in the Brix console, so a connected app can never widen access. To see what this connection itself may do, use get_items kind account.\n- media, alerts and recycle_bin come newest first. Every call counts toward the connection's 30 tool calls a minute, so page with offset instead of re-listing.\n\nParameters:\n- kind: the list to read; app_types and connectors are what create_items can make. A connectors row's setup is here (create_items makes it) or console (a person connects it in the Brix console, and it is then used by its id).\n- Filters (all optional, combined with AND, ignored on kinds they do not name): q (name contains, any kind but people and roles); status (screens online/offline/pairing; approvals pending by default, approved, rejected, withdrawn); nodeId (screens at that location and below; alerts at that location only); tag (screens, media); mediaKind and folderId (media); severity and screenId (alerts); binKind (recycle_bin).\n- limit: page size for media and approvals (default 50); other kinds give 100 a page. offset: pass nextOffset while hasMore.\n- Example: {kind:\"screens\", status:\"offline\", nodeId:\"on_west\"}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Which list.",
+            "enum": [
+              "screens",
+              "media",
+              "playlists",
+              "schedules",
+              "layouts",
+              "creatives",
+              "apps",
+              "data_sources",
+              "screen_groups",
+              "locations",
+              "media_folders",
+              "emergency_templates",
+              "casts",
+              "emergencies",
+              "alerts",
+              "approvals",
+              "recycle_bin",
+              "app_types",
+              "connectors",
+              "people",
+              "roles"
+            ]
+          },
+          "q": {
+            "type": "string",
+            "description": "Name contains."
+          },
+          "status": {
+            "type": "string",
+            "description": "Screen or approval state.",
+            "enum": [
+              "online",
+              "offline",
+              "pairing",
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn"
+            ]
+          },
+          "nodeId": {
+            "type": "string",
+            "description": "Location id."
+          },
+          "tag": {
+            "type": "string",
+            "description": "Tag."
+          },
+          "mediaKind": {
+            "type": "string",
+            "description": "Media type."
+          },
+          "folderId": {
+            "type": "string",
+            "description": "Media folder id."
+          },
+          "severity": {
+            "type": "string",
+            "description": "Alert severity.",
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ]
+          },
+          "screenId": {
+            "type": "string",
+            "description": "Screen id."
+          },
+          "binKind": {
+            "type": "string",
+            "description": "Recycle bin kind."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Page size.",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Rows to skip.",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      }
+    },
+    {
+      "name": "get_items",
+      "description": "Read items of one kind in full.\n\nWhen to use:\n- Before update_items, to see current values and part ids (playlist items pli_\u2026, schedule blocks sb_\u2026).\n- Checking how many rows of a sheet a repeating creative plays, and how many fit.\n- Checking an approval request, a fired emergency, a device test run, a person's locations and roles, a role's permissions, or who this connection is (kind account).\n\nWhen NOT to use:\n- Searching by name: use list_items first.\n- Why a screen is blank, its outages or its TV state: use get_screen_status (get_items returns a screen's settings and assigned content).\n\nWhat to know:\n- Returns a playlist's items in order, a schedule's blocks, a layout's zones, an app's config, a screen's status and content.\n- A creative that repeats for each row also returns repeatStatus: rowCount and rowsThatFit (what the last sync holds and how many play), limitedBy (rows, bytes or null), loopSeconds, columns (each header and its row tag), missingColumns, firstRowBindings, lastSyncedAt and warnings to pass on. rowCount is null when this connection cannot read that data source.\n- Sign-in details of feeds and web links stay in the Brix console: a stored one reads as \u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022, never as its value. Items outside this connection's locations read as not found.\n\nParameters:\n- kind: the kind of every id. account takes no ids and returns this connection's actor, workspace and permissions.\n- ids: prefix-typed ids from list_items (pl_\u2026 playlist, scr_\u2026 screen, sch_\u2026 schedule); required for every kind but account. Each id returns its item or not found; the rest still return.\n- device_test_runs: call again until status is finished.\n- Example: {kind:\"playlists\", ids:[\"pl_8f2c\"]}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Kind of the ids.",
+            "enum": [
+              "screens",
+              "media",
+              "playlists",
+              "schedules",
+              "layouts",
+              "creatives",
+              "apps",
+              "data_sources",
+              "screen_groups",
+              "locations",
+              "media_folders",
+              "emergency_templates",
+              "approvals",
+              "emergencies",
+              "device_test_runs",
+              "people",
+              "roles",
+              "account"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "Item ids."
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      }
+    },
+    {
+      "name": "create_items",
+      "description": "Create new items of one kind.\n\nWhen to use:\n- Adding anything new, uploading files (media_files for bytes you hold, media_from_urls for public links), pairing a device by its code or inviting a person.\n\nWhen NOT to use:\n- Changing an existing item: use update_items.\n- Showing it on screens: create it, then use set_screen_content or start_takeover.\n\nWhat to know:\n- playlists, schedules, locations and creatives are all-or-nothing: one bad row rejects the call and names it (a location whose externalId exists is skipped, so imports re-run safely). Other kinds are created one by one; each reports ok or its error and the rest continue.\n- New content at a location under review starts as a draft. Needs the kind's create permission there.\n- Tools never take sign-in values: a data_sources or apps item holding one, or a feed that cannot work without one, is refused and nothing is created. A person connects those in the Brix console; the feed is then used by its id.\n- Repeat for each row: one design and one data source play as a slideshow, one slide per row of the sheet. Set dataSourceId and repeat {over:\"rows\", secondsPerRow:12}; seconds run from 3 to 3600, default 12. A workspace without this feature refuses it with 403 feature_disabled and saves nothing, so tell the person instead of retrying.\n- Row tags follow the slide: {{row.column}} in a text box's text, row.column in a field box's field, {{row.photo}} as an image box's url or the backgroundUrl. {{rows.0.column}} stays on the sheet's first row on every slide.\n- The column name in a row tag is the sheet's header in lower case with accents removed, every other character changed to _, repeats collapsed and none at the ends: Date de d\u00e9but is row.date_de_debut, R\u00e9gion (\u20ac) is row.region. A missing column or an empty cell reads blank.\n- A picture cell must be a plain https address; anything else leaves that box empty on that slide.\n- At most 200 rows and 3 MB of slides play, and each slide is a whole copy of the design, so a large design fits fewer rows. Afterwards read it with get_items: repeatStatus gives rowCount, rowsThatFit, limitedBy, columns, missingColumns and warnings. Tell the person when rowsThatFit is below rowCount.\n- It reaches screens like any design: set_screen_content or start_takeover with contentKind creative, a schedule block or a layout zone. A playlist item has its own switch: appendItems with refKind creative may answer 403 feature_disabled, and then set_screen_content still works.\n\nParameters:\n- Pass exactly one array; its name is the kind and two arrays is an error.\n- Ids inside items (refId, contentId, nodeId, screenId, appKey, connector) must already exist; get them from list_items.\n- Example: {playlists:[{name:\"Lobby loop\", items:[{refKind:\"media\", refId:\"med_logo\", durationSec:10}]}]}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "playlists": {
+            "type": "array",
+            "maxItems": 500,
+            "description": "Playlists to create, max 500 per call.",
+            "items": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Playlist display name."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional note about the playlist, shown in the console."
+                },
+                "items": {
+                  "type": "array",
+                  "description": "What the playlist plays, in play order. Omit for an empty playlist.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "refKind",
+                      "refId"
+                    ],
+                    "properties": {
+                      "refKind": {
+                        "type": "string",
+                        "enum": [
+                          "media",
+                          "app"
+                        ],
+                        "description": "'media' for a library file, 'app' for an app instance."
+                      },
+                      "refId": {
+                        "type": "string",
+                        "description": "A media or app id in THIS workspace (find ids with list_items kind media or apps)."
+                      },
+                      "durationSec": {
+                        "type": "number",
+                        "minimum": 1,
+                        "description": "Seconds this item plays; default 10."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "schedules": {
+            "type": "array",
+            "maxItems": 200,
+            "description": "Schedules to create, max 200 per call.",
+            "items": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Schedule display name."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional note about the schedule, shown in the console."
+                },
+                "blocks": {
+                  "type": "array",
+                  "maxItems": 50,
+                  "description": "Time blocks, max 50. Each plays one piece of content on the given days between startTime and endTime.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "daysOfWeek",
+                      "startTime",
+                      "endTime",
+                      "refKind",
+                      "refId"
+                    ],
+                    "properties": {
+                      "daysOfWeek": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6
+                        },
+                        "description": "0=Sunday \u2026 6=Saturday."
+                      },
+                      "startTime": {
+                        "type": "string",
+                        "description": "HH:MM, 24-hour."
+                      },
+                      "endTime": {
+                        "type": "string",
+                        "description": "HH:MM, 24-hour."
+                      },
+                      "refKind": {
+                        "type": "string",
+                        "enum": [
+                          "media",
+                          "playlist",
+                          "app",
+                          "layout",
+                          "creative",
+                          "signage"
+                        ],
+                        "description": "Kind of content refId names."
+                      },
+                      "refId": {
+                        "type": "string",
+                        "description": "A live content id in THIS workspace."
+                      },
+                      "label": {
+                        "type": "string",
+                        "description": "Block name shown in the CMS, e.g. \"Breakfast\". Default \"Block\"."
+                      },
+                      "startDate": {
+                        "type": "string",
+                        "description": "YYYY-MM-DD first day the block runs. Omit for no start bound."
+                      },
+                      "endDate": {
+                        "type": "string",
+                        "description": "YYYY-MM-DD last day the block runs. Omit for no end bound."
+                      },
+                      "priority": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000,
+                        "description": "Higher wins where blocks overlap. Default 0."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "locations": {
+            "type": "array",
+            "maxItems": 1000,
+            "description": "Locations (org-tree nodes) to create, max 1000 per call. List a parent before its children.",
+            "items": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Location display name, e.g. \"Store 0142\" or \"West region\"."
+                },
+                "externalId": {
+                  "type": "string",
+                  "description": "Location ID (store number, region code). Unique per workspace."
+                },
+                "parentId": {
+                  "type": "string",
+                  "description": "Existing parent node id; omit for a child of the Space root."
+                },
+                "parentExternalId": {
+                  "type": "string",
+                  "description": "Location ID of the parent \u2014 an existing node or an earlier node in this call."
+                },
+                "tier": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Depth hint; derived from the parent when omitted."
+                }
+              }
+            }
+          },
+          "celebrations": {
+            "type": "array",
+            "maxItems": 100,
+            "description": "Celebration entries to import, max 100 per call.",
+            "items": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Who is being celebrated."
+                },
+                "occasionType": {
+                  "type": "string",
+                  "description": "e.g. birthday | anniversary | retirement."
+                },
+                "occasionMonth": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 12,
+                  "description": "Month of the occasion, 1 = January."
+                },
+                "occasionDay": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 31,
+                  "description": "Day of the month of the occasion."
+                },
+                "occasionYear": {
+                  "type": "integer",
+                  "description": "Optional year, e.g. birth year or start year (for ages and work anniversaries)."
+                },
+                "department": {
+                  "type": "string",
+                  "description": "Optional department, e.g. \"Sales\"."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Optional job title."
+                },
+                "location": {
+                  "type": "string",
+                  "description": "Optional site or office name, as free text."
+                },
+                "customMessage": {
+                  "type": "string",
+                  "description": "Optional message shown with the entry."
+                },
+                "externalId": {
+                  "type": "string",
+                  "description": "Stable id from the source system \u2014 makes re-imports idempotent upstream."
+                }
+              }
+            }
+          },
+          "creatives": {
+            "type": "array",
+            "maxItems": 100,
+            "description": "Creatives to create, max 100 per call.",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "boxes"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Creative display name."
+                },
+                "stage": {
+                  "type": "string",
+                  "enum": [
+                    "landscape",
+                    "portrait"
+                  ],
+                  "description": "Canvas orientation; default landscape."
+                },
+                "backgroundUrl": {
+                  "type": "string",
+                  "description": "http(s) URL or a /v1/media/<id>/file URL from this workspace."
+                },
+                "dataSourceId": {
+                  "type": "string",
+                  "description": "Data source in THIS workspace (ds_\u2026 from list_items kind data_sources) that the design's field, list and row bindings read. Required with repeat."
+                },
+                "repeat": {
+                  "type": "object",
+                  "description": "Repeat for each row: plays the design once per row of dataSourceId, with row bindings following the row. Example: {over:\"rows\", secondsPerRow:12}. Omit for a design that plays once. A workspace without the feature refuses it (403 feature_disabled) and nothing is created.",
+                  "required": [
+                    "over"
+                  ],
+                  "properties": {
+                    "over": {
+                      "type": "string",
+                      "enum": [
+                        "rows"
+                      ],
+                      "description": "What it repeats over: the rows of the data source."
+                    },
+                    "secondsPerRow": {
+                      "type": "number",
+                      "minimum": 3,
+                      "maximum": 3600,
+                      "description": "How long each row stays up, 3 to 3600 seconds; default 12."
+                    }
+                  }
+                },
+                "nodeId": {
+                  "type": "string",
+                  "description": "Org node to home the creative at; omit for the Space root."
+                },
+                "boxes": {
+                  "type": "array",
+                  "description": "The layers of the design; see the tool description for each kind's extra fields.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "x",
+                      "y",
+                      "w",
+                      "h"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "text",
+                          "field",
+                          "list",
+                          "image",
+                          "shape",
+                          "celebrations",
+                          "event-board",
+                          "signage",
+                          "group",
+                          "slot"
+                        ],
+                        "description": "Layer type; decides which extra fields apply."
+                      },
+                      "x": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": "Left edge, as a fraction of the stage width (0 = left, 1 = right)."
+                      },
+                      "y": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": "Top edge, as a fraction of the stage height (0 = top, 1 = bottom)."
+                      },
+                      "w": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": "Width, as a fraction of the stage width."
+                      },
+                      "h": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": "Height, as a fraction of the stage height."
+                      },
+                      "slot": {
+                        "description": "kind:'slot' only \u2014 the file / playlist / app this hole plays (ids from list_items in this workspace). null = an empty hole the customer fills in the editor.",
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "kind",
+                              "id"
+                            ],
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "media",
+                                  "playlist",
+                                  "app"
+                                ],
+                                "description": "What fills the hole: a media file, a playlist or an app."
+                              },
+                              "id": {
+                                "type": "string",
+                                "description": "Id of that file, playlist or app in this workspace."
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "Display label shown in the editor; optional."
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "screens": {
+            "type": "array",
+            "maxItems": 20,
+            "description": "Pair new devices, max 20. Each device shows a 6-digit pairing code on its screen; the code pairs it into this workspace.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "description": "The 6-digit pairing code shown on the device.",
+                  "pattern": "^[0-9]{6}$"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Screen name, e.g. \"Lobby left\"."
+                },
+                "nodeId": {
+                  "type": "string",
+                  "description": "Location id for the screen (list_items kind locations); omit for the workspace root."
+                }
+              },
+              "required": [
+                "code",
+                "name"
+              ]
+            }
+          },
+          "screen_groups": {
+            "type": "array",
+            "maxItems": 50,
+            "description": "Screen groups, max 50. A group is a flat label across locations; it grants no permissions.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Group name, unique in the workspace, up to 120 characters."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Note, up to 500 characters."
+                },
+                "screenIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 5000,
+                  "description": "First members (ids from list_items kind screens); ids out of reach are skipped."
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "web_links": {
+            "type": "array",
+            "maxItems": 50,
+            "description": "Live web pages or dashboards for the media library, max 50. Set crop, scroll and refresh after with update_items kind media.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Name shown in the library."
+                },
+                "url": {
+                  "type": "string",
+                  "description": "http(s) address. A private or loopback address is refused unless onScreenNetwork is true."
+                },
+                "folderId": {
+                  "type": "string",
+                  "description": "Folder id (list_items kind media_folders); omit for the root."
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Tags to set."
+                },
+                "onScreenNetwork": {
+                  "type": "boolean",
+                  "description": "true when only the screen's own network can reach the page (an intranet dashboard); the cloud then never fetches it."
+                }
+              },
+              "required": [
+                "name",
+                "url"
+              ]
+            }
+          },
+          "media_from_urls": {
+            "type": "array",
+            "maxItems": 20,
+            "description": "Files (image, video, PDF, audio) copied from public URLs into the media library, max 20 per call and 500 MB each. Copies land at the workspace root, so a connection limited to one location is refused.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "Public http(s) URL of the file: a Drive share, S3 object or old CMS export."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Display name."
+                },
+                "folderId": {
+                  "type": "string",
+                  "description": "Folder id (list_items kind media_folders); omit for the root."
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Tags to set, e.g. [\"menu\"]."
+                }
+              },
+              "required": [
+                "url",
+                "name"
+              ]
+            }
+          },
+          "media_files": {
+            "type": "array",
+            "maxItems": 5,
+            "description": "Files whose bytes you hold (an image you made, a file the person pasted), uploaded straight into the media library, 6 MB each.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "File name with its extension, e.g. \"menu.png\"."
+                },
+                "contentType": {
+                  "type": "string",
+                  "description": "MIME type, e.g. image/png, image/jpeg, video/mp4, application/pdf."
+                },
+                "dataBase64": {
+                  "type": "string",
+                  "description": "The file's bytes, base64 (a data: URL prefix is accepted)."
+                },
+                "folderId": {
+                  "type": "string",
+                  "description": "Folder id (list_items kind media_folders); omit for the root."
+                },
+                "nodeId": {
+                  "type": "string",
+                  "description": "Location id to home it at; omit for the workspace root."
+                }
+              },
+              "required": [
+                "name",
+                "contentType",
+                "dataBase64"
+              ]
+            }
+          },
+          "layouts": {
+            "type": "array",
+            "maxItems": 50,
+            "description": "Multi-zone layouts, max 50. A new layout starts with one full-screen zone; set zones with update_items (read a layout with get_items to copy its zone shape).",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Layout name."
+                },
+                "resolution": {
+                  "type": "object",
+                  "description": "Canvas size in pixels, e.g. {w:1920, h:1080}; portrait is {w:1080, h:1920}. Default {w:1920, h:1080}.",
+                  "properties": {
+                    "w": {
+                      "type": "integer",
+                      "description": "Width in pixels.",
+                      "minimum": 1
+                    },
+                    "h": {
+                      "type": "integer",
+                      "description": "Height in pixels.",
+                      "minimum": 1
+                    }
+                  },
+                  "required": [
+                    "w",
+                    "h"
+                  ]
+                },
+                "nodeId": {
+                  "type": "string",
+                  "description": "Location id to home it at; omit for the workspace root."
+                },
+                "zones": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "description": "Zones, each { name, x, y, w, h (pixels on the canvas), content: { kind, id } (media, playlist or app), frame?, radius?, role? }, the shape get_items kind layouts returns."
+                },
+                "theme": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "description": "{ source: \"brand\", mode?: \"dark\"|\"light\", radius?: px } paints the layout in the workspace Brand Kit; null = bare canvas."
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "apps": {
+            "type": "array",
+            "maxItems": 50,
+            "description": "App instances (weather, clock, menu board, \u2026), max 50. Find valid appKey values with list_items kind app_types.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "appKey": {
+                  "type": "string",
+                  "description": "App type key from list_items kind app_types, e.g. \"weather\"."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Instance name, e.g. \"Lobby weather\"."
+                },
+                "config": {
+                  "type": "object",
+                  "description": "App settings; each app has its own keys. Read an instance of the same app with get_items kind apps to see them. Omit for defaults. A sign-in value is refused."
+                },
+                "nodeId": {
+                  "type": "string",
+                  "description": "Location id to home it at; omit for the workspace root."
+                }
+              },
+              "required": [
+                "appKey",
+                "name"
+              ]
+            }
+          },
+          "data_sources": {
+            "type": "array",
+            "maxItems": 20,
+            "description": "Data feeds that need no sign-in, max 20: a CSV URL, a Google Sheet published to anyone with the link, an iCal feed, a public transit stop, or a public JSON URL. A feed that needs a sign-in or key (POS, Stripe, Shopify, HubSpot, a private sheet) is connected by a person in the Brix console and refused here; use it by its id from list_items kind data_sources. list_items kind connectors shows each type's setup.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Feed name."
+                },
+                "connector": {
+                  "type": "string",
+                  "description": "Connector type from list_items kind connectors with setup \"here\", e.g. \"google-sheets\"."
+                },
+                "config": {
+                  "type": "object",
+                  "description": "Connector settings, with no sign-in values: csv {url} or {csv}; google-sheets {sheetUrl, sheetName?}; ical {url, tz?}; transitous {stopId, rows?}; http-json and rest {url}; momentus {apiUrl}."
+                },
+                "nodeId": {
+                  "type": "string",
+                  "description": "Location id to home it at; omit for the workspace root."
+                }
+              },
+              "required": [
+                "name",
+                "connector",
+                "config"
+              ]
+            }
+          },
+          "media_folders": {
+            "type": "array",
+            "maxItems": 50,
+            "description": "Media library folders, max 50.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Folder name."
+                },
+                "parentId": {
+                  "type": "string",
+                  "description": "Parent folder id; omit for a top-level folder."
+                },
+                "nodeId": {
+                  "type": "string",
+                  "description": "Location id; omit for the workspace root."
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "emergency_templates": {
+            "type": "array",
+            "maxItems": 50,
+            "description": "Pre-armed emergency takeovers (Lockdown, Fire drill, \u2026), max 50. Fire one with start_takeover emergencyTemplateId.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Template name, e.g. \"Lockdown\"."
+                },
+                "contentKind": {
+                  "type": "string",
+                  "description": "Kind of content to show: media, playlist, app or creative.",
+                  "enum": [
+                    "media",
+                    "creative",
+                    "playlist",
+                    "app"
+                  ]
+                },
+                "contentId": {
+                  "type": "string",
+                  "description": "Id of that content (list_items)."
+                },
+                "scopeKind": {
+                  "type": "string",
+                  "description": "Which screens it takes over: all, node (one location and below) or screens.",
+                  "enum": [
+                    "all",
+                    "node",
+                    "screens"
+                  ]
+                },
+                "scopeNodeId": {
+                  "type": "string",
+                  "description": "With scopeKind node: the location id."
+                },
+                "severity": {
+                  "type": "string",
+                  "description": "info, warning or critical.",
+                  "enum": [
+                    "info",
+                    "warning",
+                    "critical"
+                  ]
+                },
+                "headline": {
+                  "type": "string",
+                  "description": "Text shown over the content."
+                },
+                "body": {
+                  "type": "string",
+                  "description": "Smaller text under the headline."
+                },
+                "prestage": {
+                  "type": "boolean",
+                  "description": "true caches the content on every in-scope screen now, so it shows at once when fired."
+                }
+              },
+              "required": [
+                "name",
+                "contentKind",
+                "contentId"
+              ]
+            }
+          },
+          "people": {
+            "type": "array",
+            "maxItems": 10,
+            "description": "Invite people, max 10. Each gets an email invitation; inviting someone already here adds the missing locations. Roles that manage people, roles, API keys, settings or billing are refused: a person gives those in the Brix console.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "description": "Their email address."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Their name."
+                },
+                "roleId": {
+                  "type": "string",
+                  "description": "Role to hold (list_items kind roles); it can hold only permissions this connection holds."
+                },
+                "nodeIds": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Locations where they hold the role (list_items kind locations)."
+                }
+              },
+              "required": [
+                "email",
+                "roleId",
+                "nodeIds"
+              ]
+            }
+          },
+          "device_test_runs": {
+            "type": "array",
+            "maxItems": 10,
+            "description": "Device Lab test runs, max 10. Each queues at once; read results with get_items kind device_test_runs. Suites content, soak, chaos and full change what the screen plays while they run; chaos and full run only on internal or test-tagged screens.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "screenId": {
+                  "type": "string",
+                  "description": "Screen to test (list_items kind screens)."
+                },
+                "suite": {
+                  "type": "string",
+                  "description": "smoke (safe liveness), display, capacity, requirements, content, soak, chaos or full. Start with smoke.",
+                  "enum": [
+                    "smoke",
+                    "chaos",
+                    "full",
+                    "content",
+                    "requirements",
+                    "display",
+                    "soak",
+                    "capacity"
+                  ]
+                }
+              },
+              "required": [
+                "screenId",
+                "suite"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "update_items",
+      "description": "Change existing items of one kind, the same changes on every id.\n\nWhen to use:\n- Renaming, moving or retagging items; editing what is inside a playlist, schedule, layout or screen group; screen, web link and data feed settings; swapping a screen's device; closing an alert.\n- Turning Repeat for each row on, changing its seconds or turning it off on a creative (repeat, useEachRow).\n- Franchise menus: share a creative live with child workspaces (shareWithWorkspaces), and set one location's own prices on a creative shared to it (localText) while the owner's design keeps updating.\n\nWhen NOT to use:\n- Showing content on screens: use set_screen_content.\n- New items: use create_items. Removing: use delete_items.\n\nWhat to know:\n- Per id, changes run as steps in a fixed order and stop at that id's first failure; earlier steps stay and are named; other ids go on. Each id returns the item as it is now.\n- Content that airs where review is required goes back to draft. Needs the kind's edit permission (screen moves: at both locations).\n- Changes go live at once: every screen playing an edited playlist, schedule or layout shows the new version at its next sync. There is no undo; overwritten values and removed playlist items are gone, so note the old values with get_items first.\n- Repeat for each row: one design and one data source play as a slideshow, one slide per row of the sheet. Set dataSourceId and repeat {over:\"rows\", secondsPerRow:12}; seconds run from 3 to 3600, default 12. A workspace without this feature refuses it with 403 feature_disabled and saves nothing, so tell the person instead of retrying.\n- Row tags follow the slide: {{row.column}} in a text box's text, row.column in a field box's field, {{row.photo}} as an image box's url or the backgroundUrl. {{rows.0.column}} stays on the sheet's first row on every slide.\n- The column name in a row tag is the sheet's header in lower case with accents removed, every other character changed to _, repeats collapsed and none at the ends: Date de d\u00e9but is row.date_de_debut, R\u00e9gion (\u20ac) is row.region. A missing column or an empty cell reads blank.\n- A picture cell must be a plain https address; anything else leaves that box empty on that slide.\n- At most 200 rows and 3 MB of slides play, and each slide is a whole copy of the design, so a large design fits fewer rows. Afterwards read it with get_items: repeatStatus gives rowCount, rowsThatFit, limitedBy, columns, missingColumns and warnings. Tell the person when rowsThatFit is below rowCount.\n- It reaches screens like any design: set_screen_content or start_takeover with contentKind creative, a schedule block or a layout zone. A playlist item has its own switch: appendItems with refKind creative may answer 403 feature_disabled, and then set_screen_content still works.\n- repeat:null turns it off and the design plays once; its row tags then have no row to read, so change them to {{rows.0.column}} in the same call's boxes.\n\nParameters:\n- kind and ids: every id must be of that kind; get them from list_items. Every id gets identical changes; for different values per item, call once per value.\n- changes: only the fields to change. Each field's description names the kinds that take it; a field the kind does not take is refused before anything changes.\n- zones, boxes, config and tags replace the whole value: read it with get_items first. In config, a value that reads \u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (sent back or left out) keeps what is stored; a new sign-in value, or clearing one, is refused because a person changes those in the Brix console.\n- Example: {kind:\"screens\", ids:[\"scr_lobby7\", \"scr_lobby8\"], changes:{nodeId:\"on_store12\", tags:[\"lobby\"]}}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Kind of the ids.",
+            "enum": [
+              "screens",
+              "media",
+              "playlists",
+              "schedules",
+              "layouts",
+              "creatives",
+              "apps",
+              "data_sources",
+              "screen_groups",
+              "locations",
+              "media_folders",
+              "emergency_templates",
+              "alerts"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "Item ids."
+          },
+          "changes": {
+            "type": "object",
+            "description": "Fields to change.",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "New name. Every kind."
+              },
+              "description": {
+                "type": "string",
+                "description": "New note. playlists, schedules, screen_groups."
+              },
+              "nodeId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Move to this location (list_items kind locations); null = workspace root. screens (refused when what it plays needs approval there), playlists, schedules, layouts, creatives, apps, data_sources, media, media_folders."
+              },
+              "parentId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "New parent. locations (a move re-paths every location under it), media_folders."
+              },
+              "externalId": {
+                "type": "string",
+                "description": "Location ID (store number), unique per workspace. locations."
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Tags. screens, media."
+              },
+              "rotation": {
+                "type": "integer",
+                "description": "Degrees clockwise: 0, 90, 180 or 270. screens.",
+                "enum": [
+                  0,
+                  90,
+                  180,
+                  270
+                ]
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA zone, e.g. \"America/Chicago\"; schedule times follow it. screens, schedules."
+              },
+              "closed": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ],
+                "description": "true closes the alert by hand (the alert evaluator also closes it when the screen recovers). alerts."
+              },
+              "replaceDeviceCode": {
+                "type": "string",
+                "description": "The 6-digit pairing code a NEW device shows; it takes over this screen with its name, content and location, and the old device is released. screens.",
+                "pattern": "^[0-9]{6}$"
+              },
+              "operatingHours": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "Weekly on and off hours, the shape get_items kind screens returns; null = always on. screens."
+              },
+              "shuffle": {
+                "type": "boolean",
+                "description": "true plays items in random order. playlists."
+              },
+              "fullscreen": {
+                "type": "boolean",
+                "description": "Inside a layout, every item fills the whole screen. playlists."
+              },
+              "transition": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "none",
+                  "fade",
+                  "slide-left",
+                  "slide-right",
+                  "slide-up",
+                  "slide-down",
+                  "zoom",
+                  null
+                ],
+                "description": "Change between items: \"fade\" crossfades, \"slide-left\"/\"slide-right\"/\"slide-up\"/\"slide-down\" push the next item in from that side, \"zoom\" fades it in from slightly larger; \"none\" or null cuts. Refused (feature_disabled) where the workspace does not have playlist transitions yet. playlists."
+              },
+              "transitionMs": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 200,
+                "maximum": 1500,
+                "description": "How long the transition runs, in ms (200\u20131500); null = the default 450. Needs a transition. playlists."
+              },
+              "startsAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ISO 8601 time it starts airing; null clears. playlists."
+              },
+              "expiresAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ISO 8601 time it stops airing; null clears. playlists, media."
+              },
+              "appendItems": {
+                "type": "array",
+                "maxItems": 50,
+                "description": "Items to add at the end of the playlist, in order, max 50 per call.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "refKind",
+                    "refId"
+                  ],
+                  "properties": {
+                    "refKind": {
+                      "type": "string",
+                      "enum": [
+                        "media",
+                        "playlist",
+                        "app",
+                        "layout",
+                        "ad-slot",
+                        "creative"
+                      ],
+                      "description": "Kind of content refId names (playlist = a nested playlist, creative = a design)."
+                    },
+                    "refId": {
+                      "type": "string",
+                      "description": "Content id in THIS workspace (list_items kind media, apps, playlists, layouts or creatives)."
+                    },
+                    "durationSeconds": {
+                      "type": "number",
+                      "minimum": 1,
+                      "description": "Seconds this item shows. Omit to use the content's default."
+                    },
+                    "fit": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "contain",
+                        "cover",
+                        "fill",
+                        "blur-fill",
+                        null
+                      ],
+                      "description": "How this slot fills the screen. Omit or null to follow the file's own setting."
+                    },
+                    "fullscreen": {
+                      "type": "boolean",
+                      "description": "When this playlist plays inside a layout, this item fills the whole screen and the other zones hide while it plays. Default false."
+                    }
+                  }
+                }
+              },
+              "patchItems": {
+                "type": "array",
+                "maxItems": 50,
+                "description": "Changes to existing items, max 50 per call. Only the fields given change.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "itemId"
+                  ],
+                  "properties": {
+                    "itemId": {
+                      "type": "string",
+                      "description": "Playlist item id (pli_\u2026), from get_items kind playlists."
+                    },
+                    "durationSeconds": {
+                      "type": "number",
+                      "minimum": 1,
+                      "description": "Seconds the item shows when durationMode is fixed."
+                    },
+                    "durationMode": {
+                      "type": "string",
+                      "enum": [
+                        "fixed",
+                        "full",
+                        "live",
+                        "loop",
+                        "manual"
+                      ],
+                      "description": "fixed = durationSeconds; full = the video's own length; live = stays on with no timer (live web page); loop = loopCount plays of an animated file; manual = holds until someone presses a bound key."
+                    },
+                    "loopCount": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "With durationMode loop: how many times the animated file plays before the next item."
+                    },
+                    "fit": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "contain",
+                        "cover",
+                        "fill",
+                        "blur-fill",
+                        null
+                      ],
+                      "description": "How this slot fills the screen. Send null to clear the override and follow the file's own setting."
+                    },
+                    "fullscreen": {
+                      "type": "boolean",
+                      "description": "When this playlist plays inside a layout, this item fills the whole screen and the other zones hide while it plays."
+                    }
+                  }
+                }
+              },
+              "removeItemIds": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Item ids (pli_\u2026) to remove, max 50 per call. An id that is already gone is ignored."
+              },
+              "reorderItemIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The COMPLETE item order after the move \u2014 unknown ids are dropped, the rest keep this sequence."
+              },
+              "addBlocks": {
+                "type": "array",
+                "maxItems": 50,
+                "description": "Time blocks to add. schedules. Times are HH:MM 24-hour in the screen's timezone.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "daysOfWeek": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6
+                      },
+                      "description": "0 = Sunday \u2026 6 = Saturday."
+                    },
+                    "startTime": {
+                      "type": "string",
+                      "description": "HH:MM, e.g. \"07:00\"."
+                    },
+                    "endTime": {
+                      "type": "string",
+                      "description": "HH:MM, e.g. \"11:00\"."
+                    },
+                    "refKind": {
+                      "type": "string",
+                      "description": "Kind of content refId names: playlist, media, app, layout or creative."
+                    },
+                    "refId": {
+                      "type": "string",
+                      "description": "Content id in this workspace."
+                    },
+                    "label": {
+                      "type": "string",
+                      "description": "Block name shown in the console, e.g. \"Breakfast\"."
+                    },
+                    "priority": {
+                      "type": "integer",
+                      "description": "Higher wins where blocks overlap; default 0.",
+                      "minimum": 0,
+                      "maximum": 1000
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "description": "YYYY-MM-DD first day; omit for no start."
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "description": "YYYY-MM-DD last day; omit for no end."
+                    }
+                  },
+                  "required": [
+                    "daysOfWeek",
+                    "startTime",
+                    "endTime",
+                    "refKind",
+                    "refId"
+                  ]
+                }
+              },
+              "patchBlocks": {
+                "type": "array",
+                "maxItems": 50,
+                "description": "Edits to existing blocks: blockId plus only the block fields to change (same fields as addBlocks). schedules.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "blockId"
+                  ],
+                  "properties": {
+                    "blockId": {
+                      "type": "string",
+                      "description": "Block id (sb_\u2026) from get_items kind schedules."
+                    }
+                  }
+                }
+              },
+              "removeBlockIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "description": "Block ids to remove. schedules."
+              },
+              "addScreenIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 5000,
+                "description": "Screens to add (list_items kind screens); ids out of reach are skipped. screen_groups."
+              },
+              "removeScreenIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 5000,
+                "description": "Screens to take out; the screens themselves do not change. screen_groups."
+              },
+              "folderId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Move to this folder; null = library root. media."
+              },
+              "altText": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Accessibility text for an image or video; null clears. media."
+              },
+              "fit": {
+                "type": "string",
+                "description": "How the file fills a screen or zone: contain (bars), blur-fill (blurred bars), cover (crops) or fill (stretches). media.",
+                "enum": [
+                  "contain",
+                  "blur-fill",
+                  "cover",
+                  "fill"
+                ]
+              },
+              "autoArchiveOnExpiry": {
+                "type": "boolean",
+                "description": "true moves the file to the recycle bin when it expires. media."
+              },
+              "showOnly": {
+                "type": "string",
+                "description": "Web links: CSS selector of the one part of the page to show, e.g. \"#timetable\"; empty string shows the whole page. Prefer an id; class names change. media."
+              },
+              "autoScrollPxPerSec": {
+                "type": "number",
+                "description": "Web links: scroll a long page at this speed; 0 stops. media.",
+                "minimum": 0
+              },
+              "refreshSeconds": {
+                "type": "number",
+                "description": "Web links: reload the page this often; 0 = never. media.",
+                "minimum": 0
+              },
+              "renderWidth": {
+                "type": "number",
+                "description": "Web links: browser width in pixels, default 1920. media.",
+                "minimum": 320
+              },
+              "renderHeight": {
+                "type": "number",
+                "description": "Web links: browser height in pixels, default 1080. media.",
+                "minimum": 240
+              },
+              "resolution": {
+                "type": "object",
+                "description": "Canvas size in pixels, e.g. {w:1080, h:1920} for portrait. layouts.",
+                "properties": {
+                  "w": {
+                    "type": "integer",
+                    "description": "Width in pixels.",
+                    "minimum": 1
+                  },
+                  "h": {
+                    "type": "integer",
+                    "description": "Height in pixels.",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "w",
+                  "h"
+                ]
+              },
+              "zones": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                },
+                "description": "All zones of the layout. layouts."
+              },
+              "theme": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "{ source: \"brand\", mode?, radius? } or null. layouts."
+              },
+              "autoFullscreenForVideo": {
+                "type": "boolean",
+                "description": "A video in any zone fills the whole screen while it plays. layouts."
+              },
+              "boxes": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                },
+                "description": "All layers of the creative, same box shape as create_items creatives. creatives."
+              },
+              "backgroundUrl": {
+                "type": "string",
+                "description": "Background image URL. creatives."
+              },
+              "dataSourceId": {
+                "type": "string",
+                "description": "Data source (ds_\u2026 from list_items kind data_sources) that the field, list and row layers read. creatives."
+              },
+              "repeat": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "Repeat for each row: {over:\"rows\", secondsPerRow:12}; null turns it off. A value out of range or an unknown field is refused. creatives.",
+                "required": [
+                  "over"
+                ],
+                "properties": {
+                  "over": {
+                    "type": "string",
+                    "description": "What it repeats over: the rows of the data source.",
+                    "enum": [
+                      "rows"
+                    ]
+                  },
+                  "secondsPerRow": {
+                    "type": "number",
+                    "description": "How long each row stays up, 3 to 3600 seconds; default 12.",
+                    "minimum": 3,
+                    "maximum": 3600
+                  }
+                }
+              },
+              "useEachRow": {
+                "type": "boolean",
+                "description": "true moves every binding on the sheet's first row (rows.0.column) to the current row (row.column), including a header with spaces or accents; other rows.N stay. Same as Use each row in the console. Needs a repeat, set here or already on the design. creatives."
+              },
+              "localText": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "description": "This location's own text on a creative shared to it, box id \u2192 text, e.g. {\"tacos-birria-tacos-price\":\"$14.49\"}; null puts the owner's text back. Only boxes the owner left editable (get_items shows each box's shareLock); other edits are refused. Boxes not named keep their local text. creatives."
+              },
+              "localAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "With localText: the location (list_items kind locations) whose text this is; omit for the whole workspace. creatives."
+              },
+              "shareWithWorkspaces": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "description": "Child workspace ids to share this creative with, live: they play it and see every change you make, and may only change what its boxes' shareLock allows. creatives."
+              },
+              "config": {
+                "type": "object",
+                "description": "All settings of the app or feed, as get_items returned them, with no new sign-in values. apps, data_sources."
+              },
+              "contentKind": {
+                "type": "string",
+                "description": "emergency_templates: kind of content to show.",
+                "enum": [
+                  "media",
+                  "creative",
+                  "playlist",
+                  "app"
+                ]
+              },
+              "contentId": {
+                "type": "string",
+                "description": "emergency_templates: id of that content."
+              },
+              "scopeKind": {
+                "type": "string",
+                "description": "emergency_templates: all, node or screens.",
+                "enum": [
+                  "all",
+                  "node",
+                  "screens"
+                ]
+              },
+              "scopeNodeId": {
+                "type": "string",
+                "description": "emergency_templates: with scopeKind node, the location id."
+              },
+              "severity": {
+                "type": "string",
+                "description": "emergency_templates.",
+                "enum": [
+                  "info",
+                  "warning",
+                  "critical"
+                ]
+              },
+              "headline": {
+                "type": "string",
+                "description": "emergency_templates: text over the content."
+              },
+              "body": {
+                "type": "string",
+                "description": "emergency_templates: smaller text under the headline."
+              },
+              "prestage": {
+                "type": "boolean",
+                "description": "emergency_templates: cache the content on screens now."
+              }
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "ids",
+          "changes"
+        ]
+      }
+    },
+    {
+      "name": "delete_items",
+      "description": "Delete items of one kind into the 30-day recycle bin.\n\nWhen to use:\n- The person has confirmed what should go (show it with list_items or get_items first).\n\nWhen NOT to use:\n- Taking a screen out of a group: use update_items removeScreenIds.\n- Stopping a takeover: use end_takeover.\n\nWhat to know:\n- restore_items undoes a delete within 30 days. A deleted playlist or schedule stops on every screen playing it; a deleted screen's device returns to pairing; a deleted location hands its content to its parent.\n- Refused: the root, a location with child locations, items shared to another workspace. Each id reports ok or its error. Needs the kind's delete permission.\n\nParameters:\n- kind and ids: every id must be of that kind.\n- permanent: true erases for good instead (recycle-bin kinds only). The first call deletes nothing and returns wouldErase and a confirmCode.\n- confirmCode: only with permanent:true; send the code from the first call, after the person says yes, with the same kind and ids. It lasts 10 minutes and fits only those ids; without permanent it is an error.\n- Example: {kind:\"playlists\", ids:[\"pl_8f2c\"]}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Kind of the ids.",
+            "enum": [
+              "screens",
+              "media",
+              "playlists",
+              "schedules",
+              "layouts",
+              "creatives",
+              "apps",
+              "data_sources",
+              "screen_groups",
+              "locations",
+              "media_folders",
+              "emergency_templates"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "Item ids."
+          },
+          "permanent": {
+            "type": "boolean",
+            "description": "Erase for good."
+          },
+          "confirmCode": {
+            "type": "string",
+            "description": "Code from the first call."
+          }
+        },
+        "required": [
+          "kind",
+          "ids"
+        ]
+      }
+    },
+    {
+      "name": "restore_items",
+      "description": "Bring back deleted items of one kind from the 30-day recycle bin.\n\nWhen to use:\n- Undoing delete_items.\n\nWhen NOT to use:\n- Items deleted more than 30 days ago: they are gone and report not found.\n\nWhat to know:\n- Whatever used a restored item (playlists, screens) uses it again; a restored screen re-pairs by itself if its device still holds its pairing. Each id reports ok or not found. Needs the kind's delete permission.\n\nParameters:\n- kind: the list_items kind name, so a recycle_bin row of kind playlist is restored with kind playlists.\n- ids: up to 50, from list_items kind recycle_bin. An id that is not in the bin reports \"not in the recycle bin\"; one deleted over 30 days ago reports not found.\n- Example: {kind:\"playlists\", ids:[\"pl_8f2c\"]}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Kind of the ids.",
+            "enum": [
+              "screens",
+              "media",
+              "playlists",
+              "schedules",
+              "layouts",
+              "creatives",
+              "apps",
+              "data_sources",
+              "media_folders",
+              "screen_groups"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "Deleted item ids."
+          }
+        },
+        "required": [
+          "kind",
+          "ids"
+        ]
+      }
+    },
+    {
+      "name": "set_screen_content",
+      "description": "Set what screens play by default until it is changed again.\n\nWhen to use:\n- Putting a playlist, schedule, app, media file or creative on one screen, a list, or every screen under a location.\n\nWhen NOT to use:\n- A takeover that ends by itself: use start_takeover.\n- Changing what a playlist contains: use update_items (every screen playing it follows).\n\nWhat to know:\n- Screens update within seconds. In a bulk call, screens the content is not shared to or whose location needs approval for it are skipped and counted (notShared, needsApproval); the rest change. Needs screen.cast.\n\nParameters:\n- screenId, screenIds and nodeId (every screen at and under it, up to 1000): give at least one; they combine into one set.\n- contentKind: playlist, schedule, app, media or creative. null clears what plays and needs exactly one screen and no nodeId.\n- contentId: the playlist, schedule, app, media or creative id from list_items; omit only with contentKind null.\n- Example: {nodeId:\"on_ca\", contentKind:\"playlist\", contentId:\"pl_spring\"}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "screenId": {
+            "type": "string",
+            "description": "Screen id."
+          },
+          "screenIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "description": "Screen ids."
+          },
+          "nodeId": {
+            "type": "string",
+            "description": "Location id."
+          },
+          "contentKind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "playlist",
+              "schedule",
+              "app",
+              "media",
+              "creative",
+              null
+            ],
+            "description": "Content kind."
+          },
+          "contentId": {
+            "type": "string",
+            "description": "Content id."
+          }
+        },
+        "required": [
+          "contentKind"
+        ]
+      }
+    },
+    {
+      "name": "start_takeover",
+      "description": "Show something on screens over their normal content, now.\n\nWhen to use:\n- Existing content for a while (the lunch menu until 2 pm), or a pre-armed emergency.\n\nWhen NOT to use:\n- A lasting change: use set_screen_content.\n\nWhat to know:\n- Content ends by itself; an emergency stays above everything until end_takeover, so confirm its scope with the person first. Returns castId for end_takeover. Needs screen.cast.\n\nParameters:\n- Pass exactly one of: contentId with contentKind (from list_items), or emergencyTemplateId (from list_items kind emergency_templates).\n- scopeKind: all (default, every screen this connection reaches), node with scopeNodeId, or screens with screenIds. An emergency ignores scope and uses its template's.\n- expiresAt: ISO 8601 with offset, default one hour from now.\n- Example: {contentKind:\"playlist\", contentId:\"pl_lunch\", scopeKind:\"node\", scopeNodeId:\"on_store12\", expiresAt:\"2026-10-20T14:00:00-07:00\"}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "contentKind": {
+            "type": "string",
+            "description": "Content kind.",
+            "enum": [
+              "media",
+              "playlist",
+              "app",
+              "creative",
+              "schedule"
+            ]
+          },
+          "contentId": {
+            "type": "string",
+            "description": "Content id."
+          },
+          "emergencyTemplateId": {
+            "type": "string",
+            "description": "Emergency template id."
+          },
+          "scopeKind": {
+            "type": "string",
+            "description": "Which screens.",
+            "enum": [
+              "all",
+              "node",
+              "screens"
+            ]
+          },
+          "scopeNodeId": {
+            "type": "string",
+            "description": "Location id."
+          },
+          "screenIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "description": "Screen ids."
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "End time."
+          },
+          "headline": {
+            "type": "string",
+            "description": "Listing name, with contentId only."
+          }
+        }
+      }
+    },
+    {
+      "name": "end_takeover",
+      "description": "End a running takeover or emergency on every screen it covers, in one call.\n\nWhen to use:\n- Taking down what start_takeover started, early.\n\nWhen NOT to use:\n- Changing default content: use set_screen_content.\n- Calling once per screen: one call ends it everywhere.\n\nWhat to know:\n- Screens return to their normal content at once. Ending one that already ended succeeds with alreadyEnded:true; an unknown id fails and lists what is running. Needs screen.cast (emergency-override.create for an emergency).\n\nParameters:\n- castId: the castId start_takeover returned, an emergency id (emg_\u2026), the id of the content on screen, or the takeover's exact headline. The last two end every running takeover of it. Find running ones with list_items kind casts or emergencies.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "castId": {
+            "type": "string",
+            "description": "Takeover id."
+          }
+        },
+        "required": [
+          "castId"
+        ]
+      }
+    },
+    {
+      "name": "get_screen_status",
+      "description": "Explain the state of one screen.\n\nWhen to use:\n- Why a screen shows what it shows, why it is blank or wrong, when it was down, or what its TV did.\n\nWhen NOT to use:\n- A screen's settings, tags or assigned content: use get_items kind screens.\n- Many screens: use get_fleet_report. A picture: use capture_screenshot. A fix: use control_screens.\n\nWhat to know:\n- Reads what the screen already reported and never contacts it, so it answers for offline screens. Needs screen.view.\n\nParameters:\n- screenId: one scr_\u2026 id from list_items kind screens.\n- view: why (the source on screen: deactivated, emergency, takeover, schedule or default); diagnose (likely cause plus a checklist; guided:true marks a TV/input/cable guess, not a reading); outages (each outage with length and cause); tv (TV off, other input, cable lost; Signage Sticks only).\n- days: outages default 30; tv default and max 14. limit: default 50; max 200 for outages, 500 for tv. Both are ignored for why and diagnose.\n- Example: {screenId:\"scr_lobby7\", view:\"outages\", days:7}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "screenId": {
+            "type": "string",
+            "description": "Screen id."
+          },
+          "view": {
+            "type": "string",
+            "description": "What to explain.",
+            "enum": [
+              "why",
+              "diagnose",
+              "outages",
+              "tv"
+            ]
+          },
+          "days": {
+            "type": "number",
+            "description": "Days to look back.",
+            "minimum": 1
+          },
+          "limit": {
+            "type": "number",
+            "description": "Most rows.",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "screenId",
+          "view"
+        ]
+      }
+    },
+    {
+      "name": "capture_screenshot",
+      "description": "Take a new screenshot of one screen and return it as an image; nothing on the screen changes.\n\nWhen to use:\n- Checking what a screen shows, e.g. after set_screen_content or control_screens.\n\nWhen NOT to use:\n- Learning why: use get_screen_status. Polling in a loop.\n\nWhat to know:\n- Waits up to about 5 seconds; a slow or offline screen returns its last frame with fresh:false. A frame over 2 MB returns latestFrameUrl only. Needs screen.edit (it sends a device command).\n\nParameters:\n- screenId: one scr_\u2026 id from list_items kind screens; for several screens, call once each. An id outside this connection's reach reads as not found and nothing is sent.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "screenId": {
+            "type": "string",
+            "description": "Screen id."
+          }
+        },
+        "required": [
+          "screenId"
+        ]
+      }
+    },
+    {
+      "name": "control_screens",
+      "description": "Send a device action to one or many screens.\n\nWhen to use:\n- A change has not appeared, a screen is frozen, an old or broken file keeps playing, or the TV must go on or off.\n\nWhen NOT to use:\n- Changing content: use set_screen_content. New data from a feed or web page: use refresh_data.\n\nWhat to know:\n- Devices act within seconds; offline ones act when they come back. Check the result with capture_screenshot. Needs screen.edit.\n\nParameters:\n- action: refresh (reload content, no restart; try first), reboot (restart; about a minute blank), clear_cache (delete stored files so they download again; media shows late meanwhile), tv_on or tv_off (HDMI-CEC TVs only; the player keeps running).\n- screenId and screenIds: give either or both; they combine into one set, each screen gets the action once, and screens out of reach are skipped.\n- Example: {action:\"refresh\", screenIds:[\"scr_7\", \"scr_8\"]}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "Device action.",
+            "enum": [
+              "refresh",
+              "reboot",
+              "clear_cache",
+              "tv_on",
+              "tv_off"
+            ]
+          },
+          "screenId": {
+            "type": "string",
+            "description": "Screen id."
+          },
+          "screenIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "description": "Screen ids."
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "name": "review_approval",
+      "description": "Approve, reject or withdraw one pending approval request.\n\nWhen to use:\n- This connection's person is an approver and a request is waiting (list_items kind approvals; read it with get_items kind approvals).\n- Cancelling a request that is no longer wanted, or one left behind by a person who has gone: withdraw.\n\nWhen NOT to use:\n- Editing the content: use update_items (an edit opens a new request).\n\nWhat to know:\n- approve airs the content where it is assigned, at once; reject keeps it off screens; withdraw closes the request with no decision and puts the content back to draft. Each is final.\n- approve and reject need this connection's person to be an approver in the request's chain; withdraw needs the requester or such an approver. Otherwise the call is refused.\n\nParameters:\n- approvalId: an ar_\u2026 id from list_items kind approvals.\n- reason: required with reject and shown to the requester word for word; with approve, an optional note; ignored with withdraw.\n- Example: {approvalId:\"ar_12\", decision:\"reject\", reason:\"Price on slide 2 is wrong.\"}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "approvalId": {
+            "type": "string",
+            "description": "Approval request id."
+          },
+          "decision": {
+            "type": "string",
+            "description": "Approve, reject or withdraw.",
+            "enum": [
+              "approve",
+              "reject",
+              "withdraw"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why."
+          }
+        },
+        "required": [
+          "approvalId",
+          "decision"
+        ]
+      }
+    },
+    {
+      "name": "refresh_data",
+      "description": "Pull fresh content now instead of at the next scheduled refresh.\n\nWhen to use:\n- Before an announcement, so menus and prices are current; after someone edits a sheet that a creative repeats over; after changing a web link's crop with update_items, to see the result.\n\nWhen NOT to use:\n- Changing a feed's or link's settings: use update_items. A screen that has not picked up a change, or is frozen: use control_screens.\n\nWhat to know:\n- Settings never change. A failing feed is reported in the result, not thrown. Screens showing the data update when a sync succeeds. Needs integration.edit for feeds, media.edit for a web link.\n- A sheet published to the web changes on Google's side up to about 5 minutes after an edit, so a sync straight after an edit can still read the old rows: synced true says the sync ran, not that the edit arrived. Check rowCount with get_items and sync again after a few minutes if it is old.\n\nParameters:\n- Pass exactly one; none or two is an error.\n- dataSourceId: one ds_\u2026 feed from list_items kind data_sources.\n- allDataSources: true syncs every feed you can edit, one after another; one failure does not stop the rest; limited to 5 calls a minute.\n- webLinkId: one med_\u2026 web link (list_items kind media, mediaKind web); renders a new snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dataSourceId": {
+            "type": "string",
+            "description": "Data source id."
+          },
+          "allDataSources": {
+            "type": "boolean",
+            "description": "Every data source."
+          },
+          "webLinkId": {
+            "type": "string",
+            "description": "Web link id."
+          }
+        }
+      }
+    },
+    {
+      "name": "get_fleet_report",
+      "description": "Read a report across screens for a time window.\n\nWhen to use:\n- Uptime and outage causes, what actually played, or who changed what.\n\nWhen NOT to use:\n- One screen's detail: use get_screen_status. What is wrong now: use list_items kind alerts.\n\nWhat to know:\n- Reads stored history only; only screens this connection can see count. Needs screen.view (uptime), playback-log.view (proof_of_play) or audit-log.view (audit_log).\n\nParameters:\n- report: uptime (online % per screen, outages with causes, worst first, one-line insights), proof_of_play (plays, watch time, skips and failures per content, and where) or audit_log (who changed what, newest first, by name).\n- from and to: uptime and proof_of_play only; ISO 8601; default the whole stored window (30 days for uptime) up to now; a non-ISO value is refused. screenId: uptime and proof_of_play only, one screen. screenIds, contentIds and detail: proof_of_play only.\n- since, limit (default 50) and cursor (nextCursor of the previous page): audit_log only.\n- Parameters for another report are ignored. Example: {report:\"uptime\", from:\"2026-10-13T00:00:00Z\"}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "report": {
+            "type": "string",
+            "description": "Which report.",
+            "enum": [
+              "uptime",
+              "proof_of_play",
+              "audit_log"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "description": "Window start."
+          },
+          "to": {
+            "type": "string",
+            "description": "Window end."
+          },
+          "screenId": {
+            "type": "string",
+            "description": "Screen id."
+          },
+          "screenIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "proof_of_play: only these screens, for example every screen at one venue."
+          },
+          "contentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "proof_of_play: only these content ids, for example one advertiser's ads."
+          },
+          "detail": {
+            "type": "string",
+            "description": "proof_of_play: screens adds byScreen, one row per content and screen.",
+            "enum": [
+              "screens"
+            ]
+          },
+          "since": {
+            "type": "string",
+            "description": "Events since."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Page size.",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Next page."
+          }
+        },
+        "required": [
+          "report"
+        ]
+      }
+    },
+    {
+      "name": "mint_upload_url",
+      "description": "Get a one-shot upload URL for a large file. The model's host PUTs bytes to it then calls confirm_media_upload with the same `uploadId`.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "description": "MIME type of the file, e.g. video/mp4 or image/png."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name for the asset."
+          }
+        },
+        "required": [
+          "contentType",
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "confirm_media_upload",
+      "description": "Finalize an upload after PUTting bytes to a mint_upload_url. Creates the media_assets row.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string",
+            "description": "The upl_\u2026 id that mint_upload_url returned."
+          },
+          "folderId": {
+            "type": "string",
+            "description": "Library folder to file it in; omit for the library root."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tags to set on the new asset."
+          }
+        },
+        "required": [
+          "uploadId"
+        ]
+      }
+    }
+  ]
+}
