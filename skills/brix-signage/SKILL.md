@@ -17,6 +17,7 @@ Never ask the user to paste an API key into the chat. Ask them to set `BRIX_API_
 ## Connecting
 
 - **Claude Code:** `claude mcp add --transport http brix https://api.brixsignage.com/v1/mcp --header "Authorization: Bearer $BRIX_API_KEY"`
+- **Hermes Agent:** `hermes plugins install brix-signage` adds the `brix` server and this skill. Set `BRIX_API_KEY` in the plugin settings (or `~/.hermes/.env`), or sign in by OAuth: `hermes mcp add brix --url https://api.brixsignage.com/v1/mcp --auth oauth`, then `hermes mcp login brix`.
 - **claude.ai / Claude Desktop / mobile:** Customize > Connectors, search Brix, Connect, sign in.
 - **Cursor and other remote-MCP clients:** `{"mcpServers":{"brix":{"url":"https://api.brixsignage.com/v1/mcp","headers":{"Authorization":"Bearer ${env:BRIX_API_KEY}"}}}}`
 - **API keys** are made in the Brix console: Settings > AI, API & MCP > API keys. Suggest a view-only key first.

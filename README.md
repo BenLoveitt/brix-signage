@@ -52,6 +52,30 @@ claude mcp add --transport http brix https://api.brixsignage.com/v1/mcp \
   --header "Authorization: Bearer $BRIX_API_KEY"
 ```
 
+### Hermes Agent
+
+This repo is also a Portable Agent Plugins v1 package for [Hermes Agent](https://github.com/NousResearch/hermes-agent): `plugin.json`, `mcp.json` (the `brix` server, Streamable HTTP) and `skills/brix-signage/`.
+
+```bash
+hermes plugins install brix-signage
+hermes plugins enable brix-signage
+```
+
+Then sign in one of two ways:
+
+- **OAuth (no key to copy).** A portable `mcp.json` cannot ask for OAuth, so add a same-named server, which replaces the package's entry (the skill stays), and sign in in the browser:
+
+  ```bash
+  hermes mcp add brix --url https://api.brixsignage.com/v1/mcp --auth oauth
+  hermes mcp login brix
+  ```
+
+- **API key.** Set `BRIX_API_KEY` in the plugin's settings in the Desktop app, or in `~/.hermes/.env`. The package sends it as `Authorization: Bearer` to `api.brixsignage.com` only.
+
+Until one is set up, Hermes does not connect the `brix` server and says `BRIX_API_KEY` is not set.
+
+What the package does: MCP tool calls go to `https://api.brixsignage.com/v1/mcp` and act on your Brix workspace with the permissions of the key or sign-in, including changing what plays on real screens, rebooting players and sending emergency messages. `plugin.json` marks the server `untrusted`, so Hermes asks before every tool not annotated read-only and refuses them in unattended runs. The package holds no code, binaries or credentials, sends no telemetry and has no self-updater. The bundled skill may suggest the `brix` CLI (`npx brixsignage`) or `curl` against the REST API when MCP is not connected; those run only through Hermes's normal shell approvals. The tool set is served by the remote server, so it is not fixed by the pinned commit.
+
 ### Cursor, LobeHub, and other clients with remote MCP
 
 ```json

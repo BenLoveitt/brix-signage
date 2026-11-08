@@ -1,0 +1,32 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "brix-signage",
+  "version": "1.1.0",
+  "description": "Manage Brix digital signage screens, playlists, schedules, media and emergency messages through the hosted Brix MCP server, with the brix-signage skill bundled.",
+  "author": {
+    "name": "Brix Signage",
+    "email": "hello@brixsignage.com",
+    "url": "https://brixsignage.com"
+  },
+  "homepage": "https://brixsignage.com/developers/mcp/",
+  "repository": "https://github.com/BenLoveitt/brix-signage",
+  "license": "MIT",
+  "keywords": ["digital-signage", "signage", "screens", "mcp", "brix"],
+  "extensions": {
+    "com.nousresearch.hermes": {
+      "config_schema": {
+        "api_key": {
+          "type": "secret",
+          "env": "BRIX_API_KEY",
+          "label": "Brix API key",
+          "description": "A Brix API key from the Brix console (Settings > AI, API & MCP > API keys). A view-only key is a safe first try. Leave empty to sign in with OAuth instead (see the README)."
+        }
+      },
+      "servers": {
+        "brix": {
+          "trust": "untrusted"
+        }
+      }
+    }
+  }
+}
