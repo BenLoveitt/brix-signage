@@ -52,6 +52,36 @@ claude mcp add --transport http brix https://api.brixsignage.com/v1/mcp \
   --header "Authorization: Bearer $BRIX_API_KEY"
 ```
 
+### Gemini CLI
+
+This repo is a [Gemini CLI extension](https://geminicli.com/extensions/): `gemini-extension.json` adds the `brix` server, `GEMINI.md` and the `brix-signage` skill.
+
+```bash
+gemini extensions install https://github.com/BenLoveitt/brix-signage
+```
+
+Then, in Gemini CLI, sign in with OAuth (no key to copy):
+
+```
+/mcp auth brix
+```
+
+To use an API key instead, add a server with the same name to `~/.gemini/settings.json`. It replaces the extension's entry, and the skill stays:
+
+```json
+{
+  "mcpServers": {
+    "brix": {
+      "type": "http",
+      "url": "https://api.brixsignage.com/v1/mcp",
+      "headers": { "Authorization": "Bearer <YOUR_API_KEY>" }
+    }
+  }
+}
+```
+
+The extension holds no code, binaries or credentials. Tool calls go to `https://api.brixsignage.com/v1/mcp` only and act with the permissions of your sign-in.
+
 ### Hermes Agent
 
 This repo is also a Portable Agent Plugins v1 package for [Hermes Agent](https://github.com/NousResearch/hermes-agent): `plugin.json`, `mcp.json` (the `brix` server, Streamable HTTP) and `skills/brix-signage/`.
