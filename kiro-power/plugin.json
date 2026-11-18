@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "brix-signage",
+  "version": "1.2.0",
+  "description": "Manage Brix digital signage from Kiro: find offline screens, put playlists and schedules on screens, upload media, send emergency messages and read proof of play, through the hosted Brix MCP server. Sign in with OAuth; nothing to install or run.",
+  "author": {
+    "name": "Brix Signage",
+    "email": "hello@brixsignage.com",
+    "url": "https://brixsignage.com"
+  },
+  "homepage": "https://brixsignage.com/developers/mcp/",
+  "repository": "https://github.com/BenLoveitt/brix-signage",
+  "license": "MIT",
+  "keywords": [
+    "brix",
+    "digital signage",
+    "signage",
+    "screens",
+    "menu board",
+    "playlist",
+    "proof of play",
+    "emergency message",
+    "kiosk",
+    "player"
+  ]
+}

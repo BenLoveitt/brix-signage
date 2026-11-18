@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "brix-signage",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Manage Brix digital signage screens, playlists, schedules, media and emergency messages through the hosted Brix MCP server, with the brix-signage skill bundled.",
   "author": {
     "name": "Brix Signage",

@@ -1,6 +1,6 @@
 {
   "name": "brix-signage",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Manage Brix digital signage screens, playlists, schedules, media and emergency messages from Gemini CLI through the hosted Brix MCP server. Sign in with OAuth; nothing to install or run.",
   "contextFileName": "GEMINI.md",
   "mcpServers": {

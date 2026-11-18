@@ -1,7 +1,7 @@
 {
   "identifier": "brixsignage-brix",
   "name": "Brix Digital Signage",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Hosted MCP server for Brix digital signage: check screen health and why a screen is blank, put playlists and announcements on screens, take over screens for emergencies, upload media, build playlists and schedules, and pull uptime and proof-of-play reports. Sign in with OAuth or use an API key.",
   "author": "Brix Signage",
   "authorUrl": "https://brixsignage.com",

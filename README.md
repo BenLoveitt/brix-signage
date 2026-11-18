@@ -82,6 +82,16 @@ To use an API key instead, add a server with the same name to `~/.gemini/setting
 
 The extension holds no code, binaries or credentials. Tool calls go to `https://api.brixsignage.com/v1/mcp` only and act with the permissions of your sign-in.
 
+### Kiro
+
+The [`kiro-power/`](kiro-power/) folder is a Kiro Power: `plugin.json`, `mcp.json` (the `brix` server, OAuth) and the `brix-signage` skill. In Kiro, open **Powers > Add Custom Power > Import power from GitHub** and enter:
+
+```
+https://github.com/BenLoveitt/brix-signage/tree/main/kiro-power
+```
+
+Kiro opens the Brix sign-in page the first time a Brix tool runs. See [`kiro-power/README.md`](kiro-power/README.md) for API-key setup.
+
 ### Hermes Agent
 
 This repo is also a Portable Agent Plugins v1 package for [Hermes Agent](https://github.com/NousResearch/hermes-agent): `plugin.json`, `mcp.json` (the `brix` server, Streamable HTTP) and `skills/brix-signage/`.

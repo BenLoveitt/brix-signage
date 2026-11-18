@@ -1,7 +1,7 @@
 {
   "name": "brix-signage",
   "description": "Manage Brix digital signage screens, playlists, schedules, media and emergency messages from Cursor through the hosted Brix MCP server, with the brix-signage skill.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": { "name": "Brix Signage", "email": "hello@brixsignage.com" },
   "homepage": "https://brixsignage.com/developers/mcp/",
   "repository": "https://github.com/BenLoveitt/brix-signage",
